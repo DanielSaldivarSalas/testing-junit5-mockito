@@ -12,8 +12,9 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.*;
+import static org.mockito.BDDMockito.then;
 import static org.mockito.Mockito.*;
-
+import static org.mockito.BDDMockito.given;
 @ExtendWith(MockitoExtension.class)
 class SpecialitySDJpaServiceTest {
     @Mock
@@ -22,14 +23,23 @@ class SpecialitySDJpaServiceTest {
     @InjectMocks //this will inject hte specialtyRepository mock into the speciality service!
     SpecialitySDJpaService service;
 
-    //Makes sure functiosn gets called only once
     @Test
     void deleteByIdTest() {
         service.deleteById(1L);
         verify(specialtyRepository).deleteById(1L);
     }
 
-    //Make sure this gets called only twice
+    @Test
+    void deleteByIdBDDTest() {
+        //given
+        //when
+        service.deleteById(1L);
+
+        //then
+        then(specialtyRepository).should().deleteById(anyLong());
+        then(specialtyRepository).shouldHaveNoMoreInteractions();
+    }
+
     @Test
     void deleteByIdTimesTest() {
         service.deleteById(1L);
@@ -70,14 +80,32 @@ class SpecialitySDJpaServiceTest {
 
     @Test
     void findByIdTest(){
+        //given
         Speciality speciality = new Speciality();
 
         when(specialtyRepository.findById(1L))
             .thenReturn(Optional.of(speciality));
+
+        //when
         Speciality foundSpecialty = service.findById(1L);
 
+        //then
         assertThat(foundSpecialty).isNotNull();
         verify(specialtyRepository).findById(anyLong());
-        //verify(specialtyRepository).findById(1L); without matchers
+    }
+    @Test
+    void findByIdBDDTest(){
+        //given
+        Speciality speciality = new Speciality();
+        given(specialtyRepository.findById(anyLong()))
+                .willReturn(Optional.of(speciality));
+
+        //when
+        Speciality foundSpecialty = service.findById(1L);
+
+        //then
+        assertThat(foundSpecialty).isNotNull();
+        then(specialtyRepository).should(times(1)).findById(anyLong());
+        then(specialtyRepository).shouldHaveNoMoreInteractions();
     }
 }
