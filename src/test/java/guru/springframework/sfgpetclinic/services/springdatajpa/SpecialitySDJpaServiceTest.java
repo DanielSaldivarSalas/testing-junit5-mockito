@@ -12,12 +12,12 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.*;
-import static org.mockito.BDDMockito.then;
+import static org.mockito.BDDMockito.*;
 import static org.mockito.Mockito.*;
-import static org.mockito.BDDMockito.given;
+
 @ExtendWith(MockitoExtension.class)
 class SpecialitySDJpaServiceTest {
-    @Mock
+    @Mock(lenient = true)
     SpecialtyRepository specialtyRepository;
 
     @InjectMocks //this will inject hte specialtyRepository mock into the speciality service!
@@ -107,5 +107,94 @@ class SpecialitySDJpaServiceTest {
         assertThat(foundSpecialty).isNotNull();
         then(specialtyRepository).should(times(1)).findById(anyLong());
         then(specialtyRepository).shouldHaveNoMoreInteractions();
+
+
+    }
+
+    @Test
+    void throwTest(){
+        //given
+        Speciality speciality = new Speciality();
+        doThrow(new RuntimeException("boom")).when(specialtyRepository).delete(any(Speciality.class));
+
+        //then
+        assertThatThrownBy(() -> {
+                //when
+                service.delete(speciality);
+            }).isInstanceOf(RuntimeException.class);
+
+        verify(specialtyRepository, times(1)).delete(any(Speciality.class));
+        //then(service).should().delete(any());
+        //then(specialtyRepository).shouldHaveNoMoreInteractions();
+    }
+
+    @Test
+    void ThrowBDDTest(){
+
+        given(specialtyRepository.findById(1L)).willThrow(new RuntimeException("boom"));
+
+        assertThatThrownBy(() -> {
+            service.findById(1L);
+        }).isInstanceOf(RuntimeException.class);
+
+        then(specialtyRepository).should().findById(anyLong());
+        then(specialtyRepository).shouldHaveNoMoreInteractions();
+    }
+
+    @Test
+    void voidMethodsBDDTest(){
+        //if the method returns a void, given can't be in the front
+        willThrow(new RuntimeException("boom")).given(specialtyRepository).delete(any());
+
+        assertThatThrownBy(() -> {
+            service.delete(new Speciality());
+        }).isInstanceOf(RuntimeException.class);
+
+
+    }
+
+    @Test
+    void saveLambdaTest(){
+        //given
+        final String MATCH_ME = "MATCH_ME";
+        Speciality speciality = new Speciality();
+        speciality.setDescription(MATCH_ME);
+
+        Speciality savedSpeciality = new Speciality();
+        savedSpeciality.setId(1L);
+
+        //need mock only when return on match MATCH_ME string
+        given(specialtyRepository.save(argThat(argument -> argument.getDescription().equals(MATCH_ME))))
+            .willReturn(savedSpeciality);
+
+        //when
+        Speciality returnedSpeciality = service.save(speciality);
+
+        //then
+        assertThat(returnedSpeciality.getId())
+            .isEqualTo(1L);
+    }
+
+    @Test
+    void saveLambdaNoMatchTest(){
+        //given
+        final String MATCH_ME = "MATCH_ME";
+        Speciality speciality = new Speciality();
+        speciality.setDescription("Not a match");
+
+        Speciality savedSpeciality = new Speciality();
+        savedSpeciality.setId(1L);
+
+        //need mock only when return on match MATCH_ME string
+        given(specialtyRepository.save(argThat(argument -> argument.getDescription().equals(MATCH_ME))))
+            .willReturn(savedSpeciality);
+
+        //when
+        Speciality returnedSpeciality = service.save(speciality);
+
+        //then
+        assertThat(returnedSpeciality)
+            .isNull();
+
     }
 }
