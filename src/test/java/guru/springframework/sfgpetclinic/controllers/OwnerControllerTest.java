@@ -1,6 +1,7 @@
 package guru.springframework.sfgpetclinic.controllers;
 
 import guru.springframework.sfgpetclinic.fauxspring.BindingResult;
+import guru.springframework.sfgpetclinic.fauxspring.Model;
 import guru.springframework.sfgpetclinic.model.Owner;
 import guru.springframework.sfgpetclinic.services.OwnerService;
 import org.junit.jupiter.api.BeforeEach;
@@ -26,6 +27,8 @@ import static org.mockito.Mockito.verify;
 class OwnerControllerTest {
     private static final String OWNERS_CREATE_OR_UPDATE_OWNER_FORM = "owners/createOrUpdateOwnerForm";
     private static final String REDIRECT_OWNERS_1 = "redirect:/owners/1";
+    @Mock
+    private Model model;
 
     @Mock
     BindingResult bindingResult;
@@ -47,6 +50,13 @@ class OwnerControllerTest {
                List<Owner> owners = new ArrayList<>();
                if (name.equals("%Buck%")){
                    owners.add(new Owner(1L, "Joe", "Buck"));
+                   return owners;
+               } else if (name.equals("%DontFindMe%")){
+                   return owners;
+                } else if (name.equals("%FindMe%")){
+                   owners.add(new Owner(1L, "Joe", "Buck"));
+                   owners.add(new Owner(2L, "Joe2", "Buck2"));
+                   return  owners;
                }
                throw new RuntimeException("Invalid Argument");
             });
@@ -56,13 +66,39 @@ class OwnerControllerTest {
     void processFindFormsWithAnnotationCaptor(){
         //given
         Owner owner = new Owner(1L, "Joe", "Buck");
-        List<Owner> ownerList = new ArrayList<>();
-        given(ownerService.findAllByLastNameLike(stringArgumentCaptor.capture())).willReturn(ownerList);
+
         //when
         String viewName = controller.processFindForm(owner, bindingResult, null);
 
         //then
         assertThat(stringArgumentCaptor.getValue()).isEqualTo("%Buck%");
+        assertThat("redirect:/owners/1").isEqualTo(viewName);
+    }
+
+    @Test
+    void processFindFormsNotFound(){
+        //given
+        Owner owner = new Owner(1L, "Joe", "DontFindMe");
+
+        //when
+        String viewName = controller.processFindForm(owner, bindingResult, model);
+
+        //then
+        assertThat(stringArgumentCaptor.getValue()).isEqualTo("%DontFindMe%");
+        assertThat("owners/findOwners").isEqualTo(viewName);
+    }
+
+    @Test
+    void processFindFormsMultipleOwnersFound() {
+        //given
+        Owner owner = new Owner(1L, "Joe", "FindMe");
+
+        //when
+        String viewName = controller.processFindForm(owner, bindingResult, model);
+
+        //then
+        assertThat(stringArgumentCaptor.getValue()).isEqualTo("%FindMe%");
+        assertThat("owners/ownersList").isEqualTo(viewName);
     }
 
     @Test
